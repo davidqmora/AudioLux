@@ -1,29 +1,7 @@
-#include "arduinoFFT.h"
-
-#define SAMPLES             512     // Must be a power of 2
-#define SAMPLING_FREQUENCY  40000   // May need to be less than 10000 due to ADC
-
-unsigned int sampling_period_us = round(1000000 / SAMPLING_FREQUENCY);
-unsigned long timer_start;
-
-double lReal[SAMPLES];      // left channel
-double lImag[SAMPLES];
-
-double rReal[SAMPLES];      // right channel
-double rImag[SAMPLES];
-
-double lpeak = 0.;          //  left channel peak frequency
-double rpeak = 0.;          //  right channel peak frequency
-
-arduinoFFT FFT = arduinoFFT();
-
-void setup() {
-  // start USB serial communication
-  Serial.begin(115200);
-  while(!Serial){ ; }
-  Serial.println("Serial Ready!\n\n");
 #include <FastLED.h>
 #include "WebServer.h"
+#include "arduinoFFT.h"
+
 
 /**********************************************************************************************/
 /* Code imported from Nanolux                                                                 */
@@ -60,6 +38,27 @@ void freq_hue_trail();
 void blank();
 
 /**********************************************************************************************/
+
+
+/*
+ * FFT related values
+ */
+#define SAMPLES             512     // Must be a power of 2
+#define SAMPLING_FREQUENCY  40000   // May need to be less than 10000 due to ADC
+
+unsigned int sampling_period_us = round(1000000 / SAMPLING_FREQUENCY);
+unsigned long timer_start;
+
+double lReal[SAMPLES];      // left channel
+double lImag[SAMPLES];
+
+double rReal[SAMPLES];      // right channel
+double rImag[SAMPLES];
+
+double lpeak = 0.;          //  left channel peak frequency
+double rpeak = 0.;          //  right channel peak frequency
+
+arduinoFFT FFT = arduinoFFT();
 
 
 /*
@@ -104,6 +103,9 @@ void handle_blue_led();
 void handle_green_led();
 
 
+/*
+ * Main Arduino Section
+ */
 void setup() {
     initialize_serial();
     initialize_led_strip();
@@ -112,10 +114,14 @@ void setup() {
 }
 
 void loop() {
-  audio_analysis();
+    audio_analysis();
     webServer.handleClient();
 }
 
+
+/*
+ * Audio Processing
+ */
 void initialize_timer() {
     timer = timerBegin(TIMER0, PRESCALER, COUNT_UP);
     timerAttachInterrupt(timer, &onTimer, TRIGGER_ON_HIGH);
@@ -150,6 +156,11 @@ void audio_analysis() {
   rpeak = FFT.MajorPeak(rReal, SAMPLES, SAMPLING_FREQUENCY);
   
 }
+
+
+/*
+ * Web Server Processing
+ */
 void initialize_web_server() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(ssid, pass);
