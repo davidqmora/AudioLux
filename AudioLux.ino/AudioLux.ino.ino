@@ -205,13 +205,13 @@ String web_page(){
     page +=".button {display: block;width: 80px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n";
     page +=".button-red {background-color: #cc0000;}\n";
     page +=".button-red:active {background-color: #ff0000;}\n";
-    page +=".button-red-disabled {background-color: #ab5454;}\n";
+    page +=".button-red-disabled {background-color: #683636;}\n";
     page +=".button-green {background-color: #00cc00;}\n";
     page +=".button-green:active {background-color: #00ff00;}\n";
-    page +=".button-green-disabled {background-color: #275d27;}\n";
+    page +=".button-green-disabled {background-color: #324932;}\n";
     page +=".button-blue {background-color: #0000cc;}\n";
     page +=".button-blue:active {background-color: #0000ff;}\n";
-    page +=".button-blue-disabled {background-color: #32328f;}\n";
+    page +=".button-blue-disabled {background-color: #36365e;}\n";
     page +="p {font-size: 14px;color: #888;margin-bottom: 10px;}\n";
     page +="</style>\n";
     page +="</head>\n";
