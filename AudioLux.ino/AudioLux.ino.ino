@@ -42,7 +42,7 @@ void blank();
  * LED Display parameters
  */
 // HSV values. We only manipulate hue.
-volatile uint8_t fHue = 0;
+volatile uint8_t fHue = HUE_RED;
 const uint8_t LED_BRIGHTNESS = 190;
 const uint8_t LED_SATURATION = 255;
 
@@ -69,9 +69,15 @@ void IRAM_ATTR onTimer(){
 /*
  * Web Server
  */
-WiFiServer webServer(80);
+WiFiWebServer webServer(80);
 
 void initialize_web_server();
+
+// These are the "route" handlers of the API.
+void handle_root();
+void handle_red_led();
+void handle_blue_led();
+void handle_green_led();
 
 
 void setup() {
@@ -82,7 +88,7 @@ void setup() {
 }
 
 void loop() {
-    handle_web();
+    webServer.handleClient();
 }
 
 void initialize_timer() {
@@ -96,87 +102,82 @@ void initialize_timer() {
 void initialize_web_server() {
     WiFi.mode(WIFI_AP);
     WiFi.softAP(ssid, pass);
-
     delay(1000);
-    webServer.begin();
 
     IPAddress ip = WiFi.softAPIP();
     Serial.print(F("To interact with the AudioLux open a browser to http://"));
     Serial.println(ip);
+
+    webServer.on("/", handle_root);
+    webServer.on("/red", handle_red_led);
+    webServer.on("/green", handle_green_led);
+    webServer.on("/blue", handle_blue_led);
+    webServer.begin();
 }
 
-void handle_web()
-{
-    WiFiClient client = webServer.available();   // listen for incoming clients
+void handle_root() {
+    webServer.send(200, "text/html", web_page());
+}
 
-    if (client)
-    {
-        // if you get a client,
-        Serial.println(F("New client"));           // print a message out the serial port
-        String currentLine = "";                // make a String to hold incoming data from the client
+void handle_red_led() {
+    fHue = HUE_RED;
+    webServer.send(200, "text/html", web_page());
+}
 
-        while (client.connected())
-        {
-            // loop while the client's connected
-            if (client.available())
-            {
-                // if there's bytes to read from the client,
-                char c = client.read();             // read a byte, then
-                Serial.write(c);                    // print it out the serial monitor
+void handle_blue_led() {
+    fHue = HUE_BLUE;
+    webServer.send(200, "text/html", web_page());
+}
 
-                if (c == '\n')
-                {
-                    // if the byte is a newline character
-                    // if the current line is blank, you got two newline characters in a row.
-                    // that's the end of the client HTTP request, so send a response:
-                    if (currentLine.length() == 0)
-                    {
-                        // HTTP headers always start with a response code (e.g. HTTP/1.1 200 OK)
-                        // and a content-type so the client knows what's coming, then a blank line:
-                        client.println(F("HTTP/1.1 200 OK"));
-                        client.println(F("Content-type:text/html"));
-                        client.println();
+void handle_green_led() {
+    fHue = HUE_GREEN;
+    webServer.send(200, "text/html", web_page());
+}
 
-                        // the content of the HTTP response follows the header:
-                        client.print(F("Click <a href=\"/H\">here</a> turn the LED on<br>"));
-                        client.print(F("Click <a href=\"/L\">here</a> turn the LED off<br>"));
+String web_page(){
+    String page = "<!DOCTYPE html> <html>\n";
+    page +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
+    page +="<title>LED Strip Color Control</title>\n";
+    page +="<style>html { font-family: Helvetica; display: inline-block; margin: 0px auto; text-align: center;}\n";
+    page +="body{margin-top: 50px;} h1 {color: #444444;margin: 50px auto 30px;} h3 {color: #444444;margin-bottom: 50px;}\n";
+    page +=".button {display: block;width: 80px;background-color: #3498db;border: none;color: white;padding: 13px 30px;text-decoration: none;font-size: 25px;margin: 0px auto 35px;cursor: pointer;border-radius: 4px;}\n";
+    page +=".button-red {background-color: #cc0000;}\n";
+    page +=".button-red:active {background-color: #ff0000;}\n";
+    page +=".button-red-disabled {background-color: #ab5454;}\n";
+    page +=".button-green {background-color: #00cc00;}\n";
+    page +=".button-green:active {background-color: #00ff00;}\n";
+    page +=".button-green-disabled {background-color: #275d27;}\n";
+    page +=".button-blue {background-color: #0000cc;}\n";
+    page +=".button-blue:active {background-color: #0000ff;}\n";
+    page +=".button-blue-disabled {background-color: #32328f;}\n";
+    page +="p {font-size: 14px;color: #888;margin-bottom: 10px;}\n";
+    page +="</style>\n";
+    page +="</head>\n";
+    page +="<body>\n";
+    page +="<h1>AudioLux Web Server</h1>\n";
+    page +="<h3>Using Access Point(AP) Mode</h3>\n";
 
-                        // The HTTP response ends with another blank line:
-                        client.println();
-                        // break out of the while loop:
-                        break;
-                    }
-                    else
-                    {
-                        // if you got a newline, then clear currentLine:
-                        currentLine = "";
-                    }
-                }
-                else if (c != '\r')
-                {
-                    // if you got anything else but a carriage return character,
-                    currentLine += c;      // add it to the end of the currentLine
-                }
-
-                show_pattern();
-
-//                // Check to see if the client request was "GET /H" or "GET /L":
-//                if (currentLine.endsWith(F("GET /H")))
-//                {
-//                    digitalWrite(led, HIGH);               // GET /H turns the LED on
-//                }
-//
-//                if (currentLine.endsWith(F("GET /L")))
-//                {
-//                    digitalWrite(led, LOW);                // GET /L turns the LED off
-//                }
-            }
-        }
-
-        // close the connection:
-        client.stop();
-        Serial.println(F("Client disconnected"));
+    if (fHue == HUE_RED){
+        page +="<a class=\"button button-red-disabled\" href=\"#\">RED ON</a>\n";
+    } else {
+        page +="<a class=\"button button-red\" href=\"/red\">SET RED</a>\n";
     }
+
+    if (fHue == HUE_GREEN){
+        page +="<a class=\"button button-green-disabled\" href=\"#\">GREEN ON</a>\n";
+    } else {
+        page +="<a class=\"button button-green\" href=\"/green\">SET GREEN</a>\n";
+    }
+
+    if (fHue == HUE_BLUE){
+        page +="<a class=\"button button-blue-disabled\" href=\"#\">BLUE ON</a>\n";
+    } else {
+        page +="<a class=\"button button-blue\" href=\"/blue\">SET BLUE</a>\n";
+    }
+
+    page +="</body>\n";
+    page +="</html>\n";
+    return page;
 }
 
 
