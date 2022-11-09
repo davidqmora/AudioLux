@@ -47,7 +47,7 @@ void blank();
 #define SAMPLING_FREQUENCY  40000   // May need to be less than 10000 due to ADC
 
 unsigned int sampling_period_us = round(1000000 / SAMPLING_FREQUENCY);
-unsigned long timer_start;
+unsigned long capture_start;
 
 double lReal[SAMPLES];      // left channel
 double lImag[SAMPLES];
@@ -133,7 +133,7 @@ void initialize_timer() {
 void audio_analysis() {
   /* Sampling */
   for(int i=0; i<SAMPLES; i++) {
-    timer_start = micros();
+    capture_start = micros();
 
     lReal[i] = analogRead(A0);
     lImag[i] = 0;
@@ -141,7 +141,7 @@ void audio_analysis() {
     rReal[i] = analogRead(A1);
     rImag[i] = 0;
 
-    while(micros() < (timer_start + sampling_period_us)) {}
+    while(micros() < (capture_start + sampling_period_us)) {}
   }
 
   /* FFT */
@@ -154,7 +154,8 @@ void audio_analysis() {
   FFT.Compute(rReal, rImag, SAMPLES, FFT_FORWARD);
   FFT.ComplexToMagnitude(rReal, rImag, SAMPLES);
   rpeak = FFT.MajorPeak(rReal, SAMPLES, SAMPLING_FREQUENCY);
-  
+
+  Serial.println("Audio Processed.");
 }
 
 
