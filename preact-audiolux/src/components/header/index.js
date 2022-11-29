@@ -7,7 +7,7 @@ const Header = () => (
 		<h1>AudioLux</h1>
 		<nav>
 			<Link activeClassName={style.active} href="/">Home</Link>
-			<Link activeClassName={style.active} href="/login">Login</Link>
+			<Link activeClassName={style.active} href="/settings">Settings</Link>
 
 		</nav>
 	</header>
