@@ -1,6 +1,7 @@
 #include <FastLED.h>
 #include "WebServer.h"
 #include "arduinoFFT.h"
+#include "LITTLEFS.h"
 
 
 /**********************************************************************************************/
@@ -102,15 +103,21 @@ void handle_red_led();
 void handle_blue_led();
 void handle_green_led();
 
+/*
+ * File system
+ */
+void initialize_file_system();
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels);
 
 /*
  * Main Arduino Section
  */
 void setup() {
     initialize_serial();
+    initialize_file_system();
     initialize_led_strip();
-    initialize_timer();
     initialize_web_server();
+    initialize_timer();
 }
 
 void loop() {
@@ -155,9 +162,82 @@ void audio_analysis() {
   FFT.ComplexToMagnitude(rReal, rImag, SAMPLES);
   rpeak = FFT.MajorPeak(rReal, SAMPLES, SAMPLING_FREQUENCY);
 
-  Serial.println("Audio Processed.");
+//  Serial.println("Audio Processed.");
 }
 
+
+/*
+ * File system
+ */
+void initialize_file_system() {
+    Serial.println(F("Initializing FS..."));
+    if (LITTLEFS.begin()) {
+        Serial.println(F("done."));
+    } else {
+        Serial.println(F("fail."));
+    }
+
+    listDir(LITTLEFS, "/", 2);
+}
+
+void listDir(fs::FS &fs, const char * dirname, uint8_t levels) {
+    Serial.printf("Listing directory: %s\r\n", dirname);
+
+    File root = fs.open(dirname);
+    if(!root){
+        Serial.println("- failed to open directory");
+        return;
+    }
+    if(!root.isDirectory()){
+        Serial.println(" - not a directory");
+        return;
+    }
+
+    File file = root.openNextFile();
+    while(file){
+        if(file.isDirectory()){
+            Serial.print("  DIR : ");
+            Serial.println(file.name());
+            if(levels){
+                listDir(fs, file.name(), levels -1);
+            }
+        } else {
+            Serial.print("  FILE: ");
+            Serial.print(file.name());
+            Serial.print("\tSIZE: ");
+            Serial.println(file.size());
+        }
+        file = root.openNextFile();
+    }
+}
+
+void register_web_paths(fs::FS &fs, const char * dirname, uint8_t levels) {
+    File root = fs.open(dirname);
+    if (!root) {
+        Serial.println("- failed to open root directory");
+        return;
+    }
+    if (!root.isDirectory()) {
+        Serial.println(" - / does not seem to be a directory");
+        return;
+    }
+
+    File file = root.openNextFile();
+    while (file) {
+        if (file.isDirectory()) {
+            Serial.print("Scanning directory: ");
+            Serial.println(file.name());
+            if (levels) {
+                register_web_paths(fs, file.name(), levels-1);
+            }
+        } else {
+            Serial.print("  Registering path: ");
+            Serial.println(file.name());
+            webServer.serveStatic(file.name(), fs, file.name());
+        }
+        file = root.openNextFile();
+    }
+}
 
 /*
  * Web Server Processing
@@ -168,14 +248,18 @@ void initialize_web_server() {
     delay(1000);
 
     IPAddress ip = WiFi.softAPIP();
-    Serial.print(F("To interact with the AudioLux open a browser to http://"));
-    Serial.println(ip);
 
-    webServer.on("/", handle_root);
+//    webServer.on("/", handle_root);
     webServer.on("/red", handle_red_led);
     webServer.on("/green", handle_green_led);
     webServer.on("/blue", handle_blue_led);
+
+    register_web_paths(LITTLEFS, "/", 2);
+    webServer.serveStatic("/", LITTLEFS, "/index.html");
     webServer.begin();
+
+    Serial.print(F("To interact with the AudioLux open a browser to http://"));
+    Serial.println(ip);
 }
 
 void handle_root() {
@@ -197,7 +281,7 @@ void handle_green_led() {
     webServer.send(200, "text/html", web_page());
 }
 
-String web_page(){
+String web_page() {
     String page = "<!DOCTYPE html> <html>\n";
     page +="<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, user-scalable=no\">\n";
     page +="<title>LED Strip Color Control</title>\n";
